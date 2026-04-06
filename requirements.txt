@@ -1,7 +1,7 @@
-streamlit
-torch
-torchvision
-numpy
-pillow
-scikit-image
-opencv-python
+streamlit==1.29.0
+torch==2.1.0
+torchvision==0.16.0
+numpy<2
+Pillow==10.0.0
+scikit-image==0.21.0
+opencv-python==4.8.1.78
