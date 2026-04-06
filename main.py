@@ -2,53 +2,47 @@ import streamlit as st
 import cv2
 import numpy as np
 from PIL import Image
-import torch
-import torchvision.transforms as T
-from anomalib.deploy import TorchInferencer
+from skimage.filters import gaussian
+from skimage.color import rgb2gray
 
-st.set_page_config(page_title="AI Leather Defect Detection Tool")
+st.set_page_config(page_title="AI Leather Defect Detection")
 st.title("🧠 AI Leather Defect Detection Tool")
 
-@st.cache_resource
-def load_model():
-    model = TorchInferencer(
-        path="https://github.com/openvinotoolkit/anomalib/releases/download/v0.5.0/padim_mvtec_leather.pt"
-    )
-    return model
+# -----------------------------
+# Detection (lightweight)
+# -----------------------------
+def detect_defects(image):
 
-model = load_model()
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-transform = T.Compose([
-    T.Resize((256,256)),
-    T.ToTensor()
-])
+    # smooth background
+    blur = cv2.GaussianBlur(gray, (21,21), 0)
 
-def detect(image):
+    # anomaly map
+    diff = cv2.absdiff(gray, blur)
 
-    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    pil = Image.fromarray(rgb)
-
-    tensor = transform(pil).unsqueeze(0)
-
-    with torch.no_grad():
-        output = model.predict(tensor)
-
-    anomaly_map = output.anomaly_map.squeeze().cpu().numpy()
-
-    anomaly_map = (anomaly_map - anomaly_map.min()) / (
-        anomaly_map.max() - anomaly_map.min() + 1e-8
+    # normalize
+    anomaly_map = cv2.normalize(
+        diff, None, 0, 255, cv2.NORM_MINMAX
     )
 
-    anomaly_map = (anomaly_map * 255).astype(np.uint8)
-
-    anomaly_map = cv2.resize(
+    # threshold
+    _, thresh = cv2.threshold(
         anomaly_map,
-        (image.shape[1], image.shape[0])
+        25,
+        255,
+        cv2.THRESH_BINARY
     )
 
-    _, thresh = cv2.threshold(anomaly_map, 200, 255, cv2.THRESH_BINARY)
+    # remove noise
+    kernel = np.ones((5,5), np.uint8)
+    thresh = cv2.morphologyEx(
+        thresh,
+        cv2.MORPH_CLOSE,
+        kernel
+    )
 
-    contours,_ = cv2.findContours(
+    contours, _ = cv2.findContours(
         thresh,
         cv2.RETR_EXTERNAL,
         cv2.CHAIN_APPROX_SIMPLE
@@ -58,7 +52,9 @@ def detect(image):
     defects = []
 
     for cnt in contours:
-        if cv2.contourArea(cnt) > 150:
+        area = cv2.contourArea(cnt)
+
+        if area > 300:
             x,y,w,h = cv2.boundingRect(cnt)
             defects.append((x,y,w,h))
 
@@ -73,22 +69,27 @@ def detect(image):
     return annotated, defects, anomaly_map
 
 
+# -----------------------------
+# Input
+# -----------------------------
 option = st.radio(
-    "Input Method",
-    ["Upload","Camera"]
+    "Choose Input",
+    ["Upload Image", "Camera"]
 )
 
 image = None
 
-if option == "Upload":
-    file = st.file_uploader("Upload image")
+if option == "Upload Image":
+    file = st.file_uploader(
+        "Upload leather image",
+        type=["jpg","png","jpeg"]
+    )
 
     if file:
         bytes_data = np.asarray(
             bytearray(file.read()),
             dtype=np.uint8
         )
-
         image = cv2.imdecode(bytes_data,1)
 
 else:
@@ -99,28 +100,33 @@ else:
             bytearray(cam.getvalue()),
             dtype=np.uint8
         )
-
         image = cv2.imdecode(bytes_data,1)
 
 
+# -----------------------------
+# Run
+# -----------------------------
 if image is not None:
 
-    annotated, defects, heatmap = detect(image)
+    annotated, defects, heatmap = detect_defects(image)
 
-    col1,col2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
     with col1:
         st.image(
-            cv2.cvtColor(annotated,cv2.COLOR_BGR2RGB),
+            cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
             caption="Detected Defects"
         )
 
     with col2:
-        st.image(heatmap,caption="Anomaly Heatmap")
+        st.image(
+            heatmap,
+            caption="Anomaly Heatmap"
+        )
 
-    st.write(f"### 🧪 {len(defects)} defects found")
+    st.markdown(f"### 🧪 {len(defects)} defects found")
 
     for i,(x,y,w,h) in enumerate(defects,1):
         st.write(
-            f"Defect {i}: Location=({x},{y}) Size={w}x{h}"
+            f"Defect {i} → Location ({x},{y}) | Size {w}x{h}"
         )
