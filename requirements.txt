@@ -1,7 +1,11 @@
-streamlit
-opencv-python-headless==4.9.0.80
+streamlit==1.36.0
+opencv-python==4.10.0.84
 numpy==1.26.4
-pillow==9.5.0
-torch
-torchvision
+pillow==10.4.0
+torch>=2.2.0
+torchvision>=0.17.0
 anomalib==0.7.0
+timm==0.9.16
+scikit-learn==1.5.1
+matplotlib==3.9.0
+rich==13.7.1
