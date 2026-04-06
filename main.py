@@ -1,77 +1,53 @@
 import streamlit as st
-import cv2
 import numpy as np
 from PIL import Image
 from skimage.filters import gaussian
-from skimage.color import rgb2gray
 
 st.set_page_config(page_title="AI Leather Defect Detection")
 st.title("🧠 AI Leather Defect Detection Tool")
 
-# -----------------------------
-# Detection (lightweight)
-# -----------------------------
+
 def detect_defects(image):
 
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    img = np.array(image)
 
-    # smooth background
-    blur = cv2.GaussianBlur(gray, (21,21), 0)
+    # convert to grayscale
+    gray = np.mean(img, axis=2)
+
+    # blur background
+    blur = gaussian(gray, sigma=5)
 
     # anomaly map
-    diff = cv2.absdiff(gray, blur)
+    diff = np.abs(gray - blur)
 
     # normalize
-    anomaly_map = cv2.normalize(
-        diff, None, 0, 255, cv2.NORM_MINMAX
-    )
+    anomaly = (diff - diff.min()) / (diff.max() - diff.min() + 1e-8)
+    anomaly = (anomaly * 255).astype(np.uint8)
 
     # threshold
-    _, thresh = cv2.threshold(
-        anomaly_map,
-        25,
-        255,
-        cv2.THRESH_BINARY
-    )
+    mask = anomaly > 25
 
-    # remove noise
-    kernel = np.ones((5,5), np.uint8)
-    thresh = cv2.morphologyEx(
-        thresh,
-        cv2.MORPH_CLOSE,
-        kernel
-    )
+    # find bounding boxes
+    coords = np.column_stack(np.where(mask))
 
-    contours, _ = cv2.findContours(
-        thresh,
-        cv2.RETR_EXTERNAL,
-        cv2.CHAIN_APPROX_SIMPLE
-    )
+    boxes = []
+    annotated = img.copy()
 
-    annotated = image.copy()
-    defects = []
+    if len(coords) > 0:
+        y_min, x_min = coords.min(axis=0)
+        y_max, x_max = coords.max(axis=0)
 
-    for cnt in contours:
-        area = cv2.contourArea(cnt)
+        boxes.append((x_min, y_min, x_max-x_min, y_max-y_min))
 
-        if area > 300:
-            x,y,w,h = cv2.boundingRect(cnt)
-            defects.append((x,y,w,h))
+        # draw rectangle
+        annotated[y_min:y_max, x_min:x_min+2] = [0,255,0]
+        annotated[y_min:y_max, x_max-2:x_max] = [0,255,0]
+        annotated[y_min:y_min+2, x_min:x_max] = [0,255,0]
+        annotated[y_max-2:y_max, x_min:x_max] = [0,255,0]
 
-            cv2.rectangle(
-                annotated,
-                (x,y),
-                (x+w,y+h),
-                (0,255,0),
-                2
-            )
-
-    return annotated, defects, anomaly_map
+    return annotated, boxes, anomaly
 
 
-# -----------------------------
-# Input
-# -----------------------------
 option = st.radio(
     "Choose Input",
     ["Upload Image", "Camera"]
@@ -80,32 +56,18 @@ option = st.radio(
 image = None
 
 if option == "Upload Image":
-    file = st.file_uploader(
-        "Upload leather image",
-        type=["jpg","png","jpeg"]
-    )
+    file = st.file_uploader("Upload leather image")
 
     if file:
-        bytes_data = np.asarray(
-            bytearray(file.read()),
-            dtype=np.uint8
-        )
-        image = cv2.imdecode(bytes_data,1)
+        image = Image.open(file).convert("RGB")
 
 else:
     cam = st.camera_input("Capture")
 
     if cam:
-        bytes_data = np.asarray(
-            bytearray(cam.getvalue()),
-            dtype=np.uint8
-        )
-        image = cv2.imdecode(bytes_data,1)
+        image = Image.open(cam).convert("RGB")
 
 
-# -----------------------------
-# Run
-# -----------------------------
 if image is not None:
 
     annotated, defects, heatmap = detect_defects(image)
@@ -113,20 +75,12 @@ if image is not None:
     col1, col2 = st.columns(2)
 
     with col1:
-        st.image(
-            cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
-            caption="Detected Defects"
-        )
+        st.image(annotated, caption="Detected Defects")
 
     with col2:
-        st.image(
-            heatmap,
-            caption="Anomaly Heatmap"
-        )
+        st.image(heatmap, caption="Anomaly Heatmap")
 
-    st.markdown(f"### 🧪 {len(defects)} defects found")
+    st.write(f"### 🧪 {len(defects)} defects found")
 
     for i,(x,y,w,h) in enumerate(defects,1):
-        st.write(
-            f"Defect {i} → Location ({x},{y}) | Size {w}x{h}"
-        )
+        st.write(f"Defect {i} → Location ({x},{y}) Size {w}x{h}")
