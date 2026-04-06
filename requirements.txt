@@ -1,7 +1,7 @@
 streamlit
 opencv-python-headless
-numpy
-pillow
+numpy==1.26.4
+pillow==9.5.0
 torch
 torchvision
-anomalib
+anomalib==0.7.0
