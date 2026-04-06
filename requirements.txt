@@ -4,4 +4,4 @@ numpy
 pillow
 torch
 torchvision
-anomalib==0.7.0
+anomalib
