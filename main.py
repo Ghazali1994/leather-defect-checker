@@ -3,26 +3,24 @@ import cv2
 import numpy as np
 from PIL import Image
 import torch
-from anomalib.models import Padim
 import torchvision.transforms as T
+from anomalib.deploy import TorchInferencer
 
 # -----------------------------
 # Streamlit UI
 # -----------------------------
 st.set_page_config(page_title="AI Leather Defect Detection Tool")
-st.title("AI Leather Defect Detection Tool")
+st.title("🧠 AI Leather Defect Detection Tool")
 st.write("Upload or capture image to detect leather defects")
 
 # -----------------------------
-# Load Model
+# Load Pretrained Model
 # -----------------------------
 @st.cache_resource
 def load_model():
-    model = Padim(
-        backbone="resnet18",
-        layers=["layer1", "layer2", "layer3"]
+    model = TorchInferencer(
+        path="https://github.com/openvinotoolkit/anomalib/releases/download/v0.5.0/padim_mvtec_leather.pt"
     )
-    model.eval()
     return model
 
 model = load_model()
@@ -46,9 +44,14 @@ def detect_defects_anomalib(image):
     input_tensor = transform(pil).unsqueeze(0)
 
     with torch.no_grad():
-        output = model(input_tensor)
+        output = model.predict(input_tensor)
 
     anomaly_map = output.anomaly_map.squeeze().cpu().numpy()
+
+    # Normalize
+    anomaly_map = (anomaly_map - anomaly_map.min()) / (
+        anomaly_map.max() - anomaly_map.min() + 1e-8
+    )
 
     anomaly_map = (anomaly_map * 255).astype(np.uint8)
 
@@ -57,6 +60,7 @@ def detect_defects_anomalib(image):
         (image.shape[1], image.shape[0])
     )
 
+    # threshold
     _, thresh = cv2.threshold(
         anomaly_map,
         200,
@@ -76,7 +80,7 @@ def detect_defects_anomalib(image):
     for cnt in contours:
         area = cv2.contourArea(cnt)
 
-        if area > 100:
+        if area > 150:   # filter noise
             x, y, w, h = cv2.boundingRect(cnt)
             defects.append((x, y, w, h))
 
@@ -84,11 +88,11 @@ def detect_defects_anomalib(image):
                 annotated,
                 (x, y),
                 (x + w, y + h),
-                (255, 255, 255),
+                (0, 255, 0),
                 2
             )
 
-    return annotated, defects
+    return annotated, defects, anomaly_map
 
 
 # -----------------------------
@@ -131,17 +135,27 @@ else:
         image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
 # -----------------------------
-# Run
+# Run Detection
 # -----------------------------
 if image is not None:
 
-    annotated, defects = detect_defects_anomalib(image)
+    annotated, defects, anomaly_map = detect_defects_anomalib(image)
 
-    st.image(
-        cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
-        caption="Detected Defects",
-        use_column_width=True
-    )
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.image(
+            cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
+            caption="Detected Defects",
+            use_column_width=True
+        )
+
+    with col2:
+        st.image(
+            anomaly_map,
+            caption="Anomaly Heatmap",
+            use_column_width=True
+        )
 
     st.markdown(f"### 🧪 {len(defects)} defect(s) found")
 
