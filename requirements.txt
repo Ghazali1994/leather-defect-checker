@@ -1,10 +1,7 @@
 streamlit==1.56.0
-torch==2.11.0
-torchvision==0.26.0
-numpy<2
-opencv-python==4.13.0.92
-Pillow==12.2.0
-scikit-image==0.26.0
-anomalib==2.3.2
-imgaug==0.4.0
-tqdm==4.67.3
+torch
+torchvision
+numpy>=2.0.0
+Pillow
+opencv-python-headless
+anomalib
