@@ -1,4 +1,7 @@
 streamlit
+torch
+torchvision
 numpy
 pillow
 scikit-image
+opencv-python
