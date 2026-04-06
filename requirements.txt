@@ -2,9 +2,4 @@ streamlit
 opencv-python-headless
 numpy
 pillow
-torch
-torchvision
-anomalib
-timm<=0.6.12
-scikit-learn
-matplotlib
+scikit-image
