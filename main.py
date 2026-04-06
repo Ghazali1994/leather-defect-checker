@@ -5,7 +5,6 @@ from PIL import Image
 import torch
 from anomalib.models import Padim
 from anomalib.data.utils import read_image
-from streamlit_paste_button import paste_image_button
 
 # --- Streamlit Page Config ---
 st.set_page_config(page_title="AI Leather Defect Detection Tool")
@@ -24,27 +23,22 @@ model = load_model()
 
 # --- Detection Function ---
 def detect_defects_anomalib(image):
-    # Convert BGR -> RGB
     rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     pil_image = Image.fromarray(rgb_image)
 
-    # Preprocess
     input_tensor = read_image(pil_image, resize=(256, 256)).unsqueeze(0)
 
     with torch.no_grad():
         output = model(input_tensor)
         anomaly_map = output["anomaly_map"].squeeze().cpu().numpy()
 
-    # Normalize
     anomaly_map = (anomaly_map * 255).astype(np.uint8)
 
-    # Resize to original
     anomaly_map = cv2.resize(
         anomaly_map,
         (image.shape[1], image.shape[0])
     )
 
-    # Threshold
     _, thresh = cv2.threshold(
         anomaly_map,
         200,
@@ -116,25 +110,6 @@ elif option == "Capture from Camera":
         )
 
         image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
-
-# --- Paste from Clipboard (SAFE) ---
-pasted_image = paste_image_button("📋 Paste Image from Clipboard")
-
-if pasted_image is not None:
-    pasted_np = np.array(pasted_image)
-
-    # RGBA
-    if len(pasted_np.shape) == 3 and pasted_np.shape[2] == 4:
-        image = cv2.cvtColor(pasted_np, cv2.COLOR_RGBA2BGR)
-
-    # RGB
-    elif len(pasted_np.shape) == 3 and pasted_np.shape[2] == 3:
-        image = cv2.cvtColor(pasted_np, cv2.COLOR_RGB2BGR)
-
-    # GRAYSCALE
-    elif len(pasted_np.shape) == 2:
-        image = cv2.cvtColor(pasted_np, cv2.COLOR_GRAY2BGR)
 
 
 # --- Run Detection ---
