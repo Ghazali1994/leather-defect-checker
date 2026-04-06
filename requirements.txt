@@ -1,9 +1,8 @@
-streamlit==1.26.0
+streamlit>=1.32.0
 opencv-python-headless
-numpy==1.26.4
-pillow==12.2.0
-torch==2.1.0
-torchvision==0.16.0
-timm
+numpy>=2.0.0
+pillow>=10.0.0
+torch>=2.9.0
+torchvision>=0.24.0
 anomalib
 streamlit-paste-button
