@@ -6,13 +6,21 @@ import torch
 from anomalib.models import Padim
 import torchvision.transforms as T
 
-# --- Streamlit Page Config ---
+# -----------------------------
+
+# Streamlit UI
+
+# -----------------------------
 
 st.set_page_config(page_title="AI Leather Defect Detection Tool")
 st.title("AI Leather Defect Detection Tool")
-st.write("Upload or capture an image to detect leather defects using Anomalib.")
+st.write("Upload or capture image to detect leather defects")
 
-# --- Load Model ---
+# -----------------------------
+
+# Load Model
+
+# -----------------------------
 
 @st.cache_resource
 def load_model():
@@ -25,14 +33,22 @@ return model
 
 model = load_model()
 
-# --- Transform ---
+# -----------------------------
+
+# Image Transform
+
+# -----------------------------
 
 transform = T.Compose([
 T.Resize((256, 256)),
 T.ToTensor()
 ])
 
-# --- Detection Function ---
+# -----------------------------
+
+# Detection Function
+
+# -----------------------------
 
 def detect_defects_anomalib(image):
 
@@ -67,8 +83,8 @@ contours, _ = cv2.findContours(
     cv2.CHAIN_APPROX_SIMPLE
 )
 
-defects = []
 annotated = image.copy()
+defects = []
 
 for cnt in contours:
     area = cv2.contourArea(cnt)
@@ -88,7 +104,11 @@ for cnt in contours:
 return annotated, defects
 ```
 
-# --- Input Options ---
+# -----------------------------
+
+# Input Selection
+
+# -----------------------------
 
 option = st.radio(
 "Choose input method:",
@@ -97,11 +117,15 @@ option = st.radio(
 
 image = None
 
-# --- Upload Image ---
+# -----------------------------
+
+# Upload
+
+# -----------------------------
 
 if option == "Upload Image":
 uploaded_file = st.file_uploader(
-"Choose an image",
+"Choose image",
 type=["jpg", "jpeg", "png"]
 )
 
@@ -112,13 +136,20 @@ if uploaded_file is not None:
         dtype=np.uint8
     )
 
-    image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    image = cv2.imdecode(
+        file_bytes,
+        cv2.IMREAD_COLOR
+    )
 ```
 
-# --- Camera Input ---
+# -----------------------------
+
+# Camera
+
+# -----------------------------
 
 elif option == "Capture from Camera":
-camera_image = st.camera_input("Capture Image")
+camera_image = st.camera_input("Capture")
 
 ```
 if camera_image is not None:
@@ -129,29 +160,36 @@ if camera_image is not None:
         dtype=np.uint8
     )
 
-    image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    image = cv2.imdecode(
+        file_bytes,
+        cv2.IMREAD_COLOR
+    )
 ```
 
-# --- Run Detection ---
+# -----------------------------
+
+# Run Detection
+
+# -----------------------------
 
 if image is not None:
 
 ```
-annotated_image, defects = detect_defects_anomalib(image)
+annotated, defects = detect_defects_anomalib(image)
 
 st.image(
-    cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB),
-    caption="Annotated Image",
+    cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
+    caption="Detected Defects",
     use_column_width=True
 )
 
 st.markdown(f"### 🧪 {len(defects)} defect(s) found")
 
-for idx, (x, y, w, h) in enumerate(defects, 1):
+for i, (x, y, w, h) in enumerate(defects, 1):
     st.write(
-        f"**Defect {idx}:** "
-        f"Location: (x={x}, y={y}), "
-        f"Size: {w}x{h}, "
+        f"Defect {i} → "
+        f"Location: ({x},{y}) | "
+        f"Size: {w}x{h} | "
         f"Area: {w*h}"
     )
 ```
