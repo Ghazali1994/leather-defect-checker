@@ -1,6 +1,6 @@
-anomalib
+streamlit
 torch
 torchvision
 opencv-python-headless
 Pillow
-streamlit
+anomalib
