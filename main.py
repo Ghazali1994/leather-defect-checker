@@ -14,14 +14,12 @@ st.title("🧠 AI Leather Defect Detection (FastFlow)")
 # -------------------------
 @st.cache_resource
 def load_model():
-    model = Fastflow(
-        backbone="resnet18",
-        input_size=(256, 256)
-    )
+    model = Fastflow(backbone="resnet18")
     model.eval()
     return model
 
 model = load_model()
+
 
 # -------------------------
 # Detect defects
@@ -29,22 +27,28 @@ model = load_model()
 def detect_defects(image):
 
     img = np.array(image)
-    img = cv2.resize(img, (256, 256))
+    resized = cv2.resize(img, (256, 256))
 
     tensor = (
-        torch.from_numpy(img)
-        .permute(2,0,1)
+        torch.from_numpy(resized)
+        .permute(2, 0, 1)
         .unsqueeze(0)
-        .float()/255
+        .float() / 255
     )
 
     with torch.no_grad():
         output = model(tensor)
 
+    # anomaly heatmap
     heatmap = output["anomaly_map"][0].cpu().numpy()
 
-    heatmap = cv2.resize(heatmap, (image.width, image.height))
+    # resize back to original
+    heatmap = cv2.resize(
+        heatmap,
+        (image.width, image.height)
+    )
 
+    # normalize
     heatmap = (heatmap - heatmap.min()) / (
         heatmap.max() - heatmap.min() + 1e-8
     )
@@ -59,25 +63,26 @@ def detect_defects(image):
         cv2.THRESH_BINARY
     )[1]
 
-    contours,_ = cv2.findContours(
+    contours, _ = cv2.findContours(
         thresh,
         cv2.RETR_EXTERNAL,
         cv2.CHAIN_APPROX_SIMPLE
     )
 
-    annotated = np.array(image).copy()
+    annotated = img.copy()
     boxes = []
 
     for c in contours:
-        x,y,w,h = cv2.boundingRect(c)
+        x, y, w, h = cv2.boundingRect(c)
 
-        if w*h > 200:
-            boxes.append((x,y,w,h))
+        # remove tiny noise
+        if w * h > 200:
+            boxes.append((x, y, w, h))
             cv2.rectangle(
                 annotated,
-                (x,y),
-                (x+w,y+h),
-                (0,255,0),
+                (x, y),
+                (x + w, y + h),
+                (0, 255, 0),
                 2
             )
 
@@ -98,7 +103,6 @@ if option == "Upload Image":
     file = st.file_uploader("Upload leather image")
     if file:
         image = Image.open(file).convert("RGB")
-
 else:
     cam = st.camera_input("Capture")
     if cam:
@@ -106,7 +110,7 @@ else:
 
 
 # -------------------------
-# Run
+# Run detection
 # -------------------------
 if image is not None:
 
@@ -115,14 +119,23 @@ if image is not None:
     col1, col2 = st.columns(2)
 
     with col1:
-        st.image(annotated, caption="Detected Defects")
+        st.image(
+            annotated,
+            caption="Detected Defects",
+            use_container_width=True
+        )
 
     with col2:
-        st.image(heatmap, caption="Anomaly Heatmap", clamp=True)
+        st.image(
+            heatmap,
+            caption="Anomaly Heatmap",
+            clamp=True,
+            use_container_width=True
+        )
 
     st.write(f"### 🔎 {len(boxes)} defects found")
 
-    for i,(x,y,w,h) in enumerate(boxes,1):
+    for i, (x, y, w, h) in enumerate(boxes, 1):
         st.write(
             f"Defect {i} → Location ({x},{y}) Size {w}x{h}"
         )
