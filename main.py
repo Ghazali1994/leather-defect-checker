@@ -4,29 +4,30 @@ from PIL import Image
 import cv2
 import torch
 
-from anomalib.models import Padim
+from anomalib.models import Fastflow
 
 st.set_page_config(page_title="AI Leather Defect Detection")
-st.title("🧠 AI Leather Defect Detection (Anomalib - PaDiM)")
+st.title("🧠 AI Leather Defect Detection (Anomalib - FastFlow)")
 
 # -----------------------------
-# Load model (cached)
+# Load model
 # -----------------------------
 @st.cache_resource
 def load_model():
-    model = Padim(backbone="resnet18")
+    model = Fastflow(
+        backbone="resnet18",
+        input_size=(256, 256)
+    )
     model.eval()
     return model
 
 model = load_model()
-fitted = False
 
 
 # -----------------------------
 # Detect defects
 # -----------------------------
 def detect_defects(image):
-    global fitted
 
     img = np.array(image)
     img_resized = cv2.resize(img, (256, 256))
@@ -38,24 +39,17 @@ def detect_defects(image):
         .float() / 255
     )
 
-    # First image -> Fit model
-    if not fitted:
-        with torch.no_grad():
-            model.fit(tensor)
-        fitted = True
-
-    # Inference
     with torch.no_grad():
         output = model(tensor)
 
     heatmap = output["anomaly_map"][0].cpu().numpy()
 
-    # Normalize
+    # normalize
     heatmap = cv2.resize(heatmap, (image.width, image.height))
     heatmap = (heatmap - heatmap.min()) / (heatmap.max() - heatmap.min() + 1e-8)
     heatmap_uint8 = (heatmap * 255).astype(np.uint8)
 
-    # Threshold
+    # threshold
     thresh = cv2.threshold(
         heatmap_uint8, 180, 255, cv2.THRESH_BINARY
     )[1]
@@ -106,7 +100,7 @@ else:
 
 
 # -----------------------------
-# Run detection
+# Run
 # -----------------------------
 if image is not None:
 
