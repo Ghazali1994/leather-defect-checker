@@ -7,11 +7,11 @@ import torch
 from anomalib.models import Fastflow
 
 st.set_page_config(page_title="AI Leather Defect Detection")
-st.title("🧠 AI Leather Defect Detection (Anomalib - FastFlow)")
+st.title("🧠 AI Leather Defect Detection (FastFlow)")
 
-# -----------------------------
+# -------------------------
 # Load model
-# -----------------------------
+# -------------------------
 @st.cache_resource
 def load_model():
     model = Fastflow(
@@ -23,20 +23,19 @@ def load_model():
 
 model = load_model()
 
-
-# -----------------------------
+# -------------------------
 # Detect defects
-# -----------------------------
+# -------------------------
 def detect_defects(image):
 
     img = np.array(image)
-    img_resized = cv2.resize(img, (256, 256))
+    img = cv2.resize(img, (256, 256))
 
     tensor = (
-        torch.from_numpy(img_resized)
-        .permute(2, 0, 1)
+        torch.from_numpy(img)
+        .permute(2,0,1)
         .unsqueeze(0)
-        .float() / 255
+        .float()/255
     )
 
     with torch.no_grad():
@@ -44,43 +43,50 @@ def detect_defects(image):
 
     heatmap = output["anomaly_map"][0].cpu().numpy()
 
-    # normalize
     heatmap = cv2.resize(heatmap, (image.width, image.height))
-    heatmap = (heatmap - heatmap.min()) / (heatmap.max() - heatmap.min() + 1e-8)
+
+    heatmap = (heatmap - heatmap.min()) / (
+        heatmap.max() - heatmap.min() + 1e-8
+    )
+
     heatmap_uint8 = (heatmap * 255).astype(np.uint8)
 
     # threshold
     thresh = cv2.threshold(
-        heatmap_uint8, 180, 255, cv2.THRESH_BINARY
+        heatmap_uint8,
+        180,
+        255,
+        cv2.THRESH_BINARY
     )[1]
 
-    contours, _ = cv2.findContours(
-        thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    contours,_ = cv2.findContours(
+        thresh,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
     )
 
     annotated = np.array(image).copy()
     boxes = []
 
     for c in contours:
-        x, y, w, h = cv2.boundingRect(c)
+        x,y,w,h = cv2.boundingRect(c)
 
-        # remove noise
-        if w * h > 200:
-            boxes.append((x, y, w, h))
+        if w*h > 200:
+            boxes.append((x,y,w,h))
             cv2.rectangle(
                 annotated,
-                (x, y),
-                (x + w, y + h),
-                (0, 255, 0),
-                2,
+                (x,y),
+                (x+w,y+h),
+                (0,255,0),
+                2
             )
 
     return annotated, heatmap_uint8, boxes
 
 
-# -----------------------------
+# -------------------------
 # UI
-# -----------------------------
+# -------------------------
 option = st.radio(
     "Choose Input",
     ["Upload Image", "Camera"]
@@ -99,9 +105,9 @@ else:
         image = Image.open(cam).convert("RGB")
 
 
-# -----------------------------
+# -------------------------
 # Run
-# -----------------------------
+# -------------------------
 if image is not None:
 
     annotated, heatmap, boxes = detect_defects(image)
@@ -116,7 +122,7 @@ if image is not None:
 
     st.write(f"### 🔎 {len(boxes)} defects found")
 
-    for i, (x, y, w, h) in enumerate(boxes, 1):
+    for i,(x,y,w,h) in enumerate(boxes,1):
         st.write(
             f"Defect {i} → Location ({x},{y}) Size {w}x{h}"
         )
