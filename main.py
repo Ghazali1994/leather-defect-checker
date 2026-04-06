@@ -1,89 +1,69 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import torch
-import torchvision.transforms as T
-from torchvision import models
 import cv2
+import torch
+
+from anomalib.models import Padim
+from anomalib.data.utils import read_image
 
 st.set_page_config(page_title="AI Leather Defect Detection")
-st.title("🧠 AI Leather Defect Detection Tool")
+st.title("🧠 AI Leather Defect Detection (Anomalib)")
 
-# --- Load pretrained CNN (ResNet18) ---
-model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-model.eval()  # evaluation mode
+# -------------------------
+# Load lightweight model
+# -------------------------
+@st.cache_resource
+def load_model():
+    model = Padim(backbone="resnet18")
+    model.eval()
+    return model
 
-# --- Transform for CNN input ---
-transform = T.Compose([
-    T.Resize((224, 224)),
-    T.ToTensor(),
-    T.Normalize([0.485, 0.456, 0.406],[0.229, 0.224, 0.225])
-])
+model = load_model()
 
-# --- Function to generate Grad-CAM heatmap ---
-def get_heatmap(image, model):
-    """Return heatmap highlighting regions CNN finds most important."""
-    img_tensor = transform(image).unsqueeze(0)
-    img_tensor.requires_grad_()
-    
-    # Forward pass
-    output = model(img_tensor)
-    pred_class = output.argmax(dim=1)
-    
-    # Backward pass to get gradients
-    model.zero_grad()
-    output[0, pred_class].backward()
-    
-    # Extract gradients from last conv layer
-    gradients = model.layer4[1].conv2.weight.grad
-    pooled_gradients = torch.mean(gradients, dim=[0,2,3])
-    
-    # Extract activations
-    activations = model.layer4[1].conv2.weight.detach()
-    
-    # Compute weighted sum
-    for i in range(activations.shape[0]):
-        activations[i] *= pooled_gradients[i]
-    heatmap = torch.mean(activations, dim=0).cpu().numpy()
-    
-    # Normalize heatmap
-    heatmap = np.maximum(heatmap, 0)
-    heatmap = heatmap / (heatmap.max() + 1e-8)
+# -------------------------
+# Detect defects
+# -------------------------
+def detect_defects(image):
+
+    img = np.array(image)
+    img_resized = cv2.resize(img, (256,256))
+
+    tensor = torch.from_numpy(img_resized).permute(2,0,1).unsqueeze(0).float()/255
+
+    with torch.no_grad():
+        output = model(tensor)
+
+    heatmap = output["anomaly_map"][0].cpu().numpy()
+
     heatmap = cv2.resize(heatmap, (image.width, image.height))
-    heatmap_uint8 = (heatmap * 255).astype(np.uint8)
-    
-    return heatmap_uint8
+    heatmap = (heatmap - heatmap.min())/(heatmap.max()-heatmap.min()+1e-8)
+    heatmap_uint8 = (heatmap*255).astype(np.uint8)
 
-# --- Function to detect defects ---
-def detect_defects_cnn(image):
-    img_np = np.array(image).copy()
-    
-    # Generate heatmap from CNN
-    heatmap = get_heatmap(image, model)
-    
-    # Threshold heatmap to get defect regions
-    thresh = cv2.threshold(heatmap, 128, 255, cv2.THRESH_BINARY)[1]
-    
-    # Find contours for bounding boxes
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # threshold
+    thresh = cv2.threshold(heatmap_uint8, 180, 255, cv2.THRESH_BINARY)[1]
+
+    contours,_ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    annotated = np.array(image).copy()
     boxes = []
-    for cnt in contours:
-        x, y, w, h = cv2.boundingRect(cnt)
-        boxes.append((x, y, w, h))
-        # Draw rectangle on annotated image
-        cv2.rectangle(img_np, (x, y), (x + w, y + h), (0, 255, 0), 2)
-    
-    return img_np, boxes, heatmap
 
-# --- Streamlit UI ---
-option = st.radio(
-    "Choose Input",
-    ["Upload Image", "Camera"]
-)
+    for c in contours:
+        x,y,w,h = cv2.boundingRect(c)
+        if w*h > 200:   # remove noise
+            boxes.append((x,y,w,h))
+            cv2.rectangle(annotated,(x,y),(x+w,y+h),(0,255,0),2)
+
+    return annotated, heatmap_uint8, boxes
+
+# -------------------------
+# UI
+# -------------------------
+option = st.radio("Choose Input",["Upload","Camera"])
 
 image = None
 
-if option == "Upload Image":
+if option == "Upload":
     file = st.file_uploader("Upload leather image")
     if file:
         image = Image.open(file).convert("RGB")
@@ -92,15 +72,19 @@ else:
     if cam:
         image = Image.open(cam).convert("RGB")
 
-if image is not None:
-    annotated, defects, heatmap = detect_defects_cnn(image)
+if image:
 
-    col1, col2 = st.columns(2)
+    annotated, heatmap, boxes = detect_defects(image)
+
+    col1,col2 = st.columns(2)
+
     with col1:
         st.image(annotated, caption="Detected Defects")
-    with col2:
-        st.image(heatmap, caption="Defect Heatmap", clamp=True)
 
-    st.write(f"### 🧪 {len(defects)} defects found")
-    for i, (x, y, w, h) in enumerate(defects, 1):
-        st.write(f"Defect {i} → Location ({x},{y}) Size {w}x{h}")
+    with col2:
+        st.image(heatmap, caption="Anomaly Heatmap")
+
+    st.write(f"### 🔎 {len(boxes)} defects found")
+
+    for i,(x,y,w,h) in enumerate(boxes,1):
+        st.write(f"Defect {i}: ({x},{y}) size {w}x{h}")
