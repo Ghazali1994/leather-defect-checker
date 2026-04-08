@@ -40,10 +40,10 @@ model = load_model()
 # -------------------------
 
 def preprocess_image(image: Image.Image):
-image = image.resize((256, 256))
-image_np = np.array(image).astype(np.float32) / 255.0
-image_tensor = torch.from_numpy(image_np).permute(2, 0, 1).unsqueeze(0)
-return image_tensor.to(device), image_np
+    image = image.resize((256, 256))
+    image_np = np.array(image).astype(np.float32) / 255.0
+    image_tensor = torch.from_numpy(image_np).permute(2, 0, 1).unsqueeze(0)
+    return image_tensor.to(device), image_np
 
 # -------------------------
 
@@ -52,7 +52,7 @@ return image_tensor.to(device), image_np
 # -------------------------
 
 def detect_defects(image: Image.Image, thresh):
-input_tensor, resized_img = preprocess_image(image)
+    input_tensor, resized_img = preprocess_image(image)
 
 ```
 with torch.no_grad():
