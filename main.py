@@ -77,10 +77,10 @@ for cnt in contours:
     boxes.append((x, y, x + w, y + h))
     cv2.rectangle(annotated, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-overlay = cv2.addWeighted(annotated, 0.6, heatmap_color, 0.4, 0)
+    heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+    overlay = cv2.addWeighted(annotated, 0.6, heatmap_color, 0.4, 0)
 
-    return annotated, boxes, heatmap_color, overlay
+return annotated, boxes, heatmap_color, overlay
 
 # -------------------------
 
