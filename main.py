@@ -128,8 +128,6 @@ if image is not None:
             f"Size {x_max-x_min}x{y_max-y_min}"
         )
 
-
-for i, (x_min, y_min, x_max, y_max) in enumerate(defects, 1):
     st.write(
         f"Defect {i} → Location ({x_min},{y_min}) "
         f"Size {x_max-x_min}x{y_max-y_min}"
