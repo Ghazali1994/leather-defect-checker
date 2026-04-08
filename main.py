@@ -50,7 +50,7 @@ def detect_defects(image: Image.Image, thresh):
 
     with torch.no_grad():
         output = model(input_tensor)
-        anomaly_map = output["anomaly_map"].squeeze().cpu().numpy()
+        anomaly_map = output.anomaly_map.squeeze().cpu().numpy()
 
     heatmap = (anomaly_map - anomaly_map.min()) / (
         anomaly_map.max() - anomaly_map.min() + 1e-8
