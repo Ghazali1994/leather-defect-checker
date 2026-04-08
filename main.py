@@ -26,10 +26,10 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 @st.cache_resource
 def load_model():
-model = Fastflow(backbone="resnet18")
-model.eval()
-model.to(device)
-return model
+    model = Fastflow(backbone="resnet18")
+    model.eval()
+    model.to(device)
+    return model
 
 model = load_model()
 
