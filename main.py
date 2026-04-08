@@ -108,13 +108,13 @@ thresh = st.slider("Detection Sensitivity", 0, 255, 25)
 image = None
 
 if option == "Upload Image":
-file = st.file_uploader("Upload leather image", type=["jpg", "jpeg", "png"])
-if file:
-image = Image.open(file).convert("RGB")
+    file = st.file_uploader("Upload leather image", type=["jpg", "jpeg", "png"])
+    if file:
+        image = Image.open(file).convert("RGB")
 else:
-cam = st.camera_input("Capture")
-if cam:
-image = Image.open(cam).convert("RGB")
+    cam = st.camera_input("Capture")
+    if cam:
+        image = Image.open(cam).convert("RGB")
 
 # -------------------------
 
