@@ -112,15 +112,22 @@ else:
 if image is not None:
     annotated, defects, heatmap, overlay = detect_defects(image, thresh)
 
-col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
-with col1:
-    st.image(annotated, caption="Detected Defects", use_column_width=True)
+    with col1:
+        st.image(annotated, caption="Detected Defects", use_column_width=True)
 
-with col2:
-    st.image(overlay, caption="Heatmap Overlay", use_column_width=True)
+    with col2:
+        st.image(overlay, caption="Heatmap Overlay", use_column_width=True)
 
-st.write(f"### 🧪 {len(defects)} defect(s) found")
+    st.write(f"### 🧪 {len(defects)} defect(s) found")
+
+    for i, (x_min, y_min, x_max, y_max) in enumerate(defects, 1):
+        st.write(
+            f"Defect {i} → Location ({x_min},{y_min}) "
+            f"Size {x_max-x_min}x{y_max-y_min}"
+        )
+
 
 for i, (x_min, y_min, x_max, y_max) in enumerate(defects, 1):
     st.write(
