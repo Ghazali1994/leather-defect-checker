@@ -54,7 +54,6 @@ def preprocess_image(image: Image.Image):
 def detect_defects(image: Image.Image, thresh):
     input_tensor, resized_img = preprocess_image(image)
 
-```
 with torch.no_grad():
     output = model(input_tensor)
     anomaly_map = output["anomaly_map"].squeeze().cpu().numpy()
