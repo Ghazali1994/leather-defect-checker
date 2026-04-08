@@ -48,39 +48,40 @@ def preprocess_image(image: Image.Image):
 def detect_defects(image: Image.Image, thresh):
     input_tensor, resized_img = preprocess_image(image)
 
-with torch.no_grad():
-    output = model(input_tensor)
-    anomaly_map = output["anomaly_map"].squeeze().cpu().numpy()
+    with torch.no_grad():
+        output = model(input_tensor)
+        anomaly_map = output["anomaly_map"].squeeze().cpu().numpy()
 
-heatmap = (anomaly_map - anomaly_map.min()) / (
-    anomaly_map.max() - anomaly_map.min() + 1e-8
-)
-heatmap = (heatmap * 255).astype(np.uint8)
+    heatmap = (anomaly_map - anomaly_map.min()) / (
+        anomaly_map.max() - anomaly_map.min() + 1e-8
+    )
+    heatmap = (heatmap * 255).astype(np.uint8)
 
-mask = heatmap > thresh
+    mask = heatmap > thresh
 
-contours, _ = cv2.findContours(
-    mask.astype(np.uint8),
-    cv2.RETR_EXTERNAL,
-    cv2.CHAIN_APPROX_SIMPLE
-)
+    contours, _ = cv2.findContours(
+        mask.astype(np.uint8),
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
+    )
 
-annotated = (resized_img * 255).astype(np.uint8).copy()
-boxes = []
+    annotated = (resized_img * 255).astype(np.uint8).copy()
+    boxes = []
 
-for cnt in contours:
-    x, y, w, h = cv2.boundingRect(cnt)
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
 
-    if w * h < 50:
-        continue
+        if w * h < 50:
+            continue
 
-    boxes.append((x, y, x + w, y + h))
-    cv2.rectangle(annotated, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        boxes.append((x, y, x + w, y + h))
+        cv2.rectangle(annotated, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-overlay = cv2.addWeighted(annotated, 0.6, heatmap_color, 0.4, 0)
+    heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+    overlay = cv2.addWeighted(annotated, 0.6, heatmap_color, 0.4, 0)
 
-return annotated, boxes, heatmap_color, overlay
+    return annotated, boxes, heatmap_color, overlay
+
 
 # -------------------------
 
