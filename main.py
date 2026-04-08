@@ -123,7 +123,7 @@ else:
 # -------------------------
 
 if image is not None:
-annotated, defects, heatmap, overlay = detect_defects(image, thresh)
+    annotated, defects, heatmap, overlay = detect_defects(image, thresh)
 
 ```
 col1, col2 = st.columns(2)
