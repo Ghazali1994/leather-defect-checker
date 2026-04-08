@@ -92,7 +92,6 @@ heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 overlay = cv2.addWeighted(annotated, 0.6, heatmap_color, 0.4, 0)
 
 return annotated, boxes, heatmap_color, overlay
-```
 
 # -------------------------
 
