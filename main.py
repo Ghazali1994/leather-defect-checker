@@ -127,8 +127,3 @@ if image is not None:
             f"Defect {i} → Location ({x_min},{y_min}) "
             f"Size {x_max-x_min}x{y_max-y_min}"
         )
-
-    st.write(
-        f"Defect {i} → Location ({x_min},{y_min}) "
-        f"Size {x_max-x_min}x{y_max-y_min}"
-    )
