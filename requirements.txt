@@ -1,7 +1,6 @@
 streamlit
-torch
-torchvision
-opencv-python-headless
 numpy
 pillow
+torch
+opencv-python-headless
 anomalib
