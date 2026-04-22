@@ -1,8 +1,8 @@
 streamlit
-torch
-torchvision
-anomalib
-opencv-python-headless
+torch==2.1.0
+torchvision==0.16.0
+anomalib==0.7.0
+opencv-python-headless==4.8.1.78
 Pillow
 numpy
 urllib3
