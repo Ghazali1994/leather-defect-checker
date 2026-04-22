@@ -3,6 +3,8 @@ from PIL import Image
 import numpy as np
 import cv2
 import torch
+import os
+import urllib.request
 from anomalib.models import Fastflow
 
 st.set_page_config(page_title="🧠 AI Leather Defect Detection", layout="wide")
@@ -14,11 +16,24 @@ st.title("🧠 AI Leather Defect Detection (FastFlow)")
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # -------------------------
-# Load trained model
+# Model download
+# -------------------------
+MODEL_URL = "https://huggingface.co/openvino/anomalib-fastflow-mvtec-leather/resolve/main/model.ckpt"
+MODEL_PATH = "model.ckpt"
+
+def download_model():
+    if not os.path.exists(MODEL_PATH):
+        st.info("Downloading AI model... ⏳ Please wait (first run only)")
+        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+        st.success("Model downloaded successfully!")
+
+# -------------------------
+# Load model
 # -------------------------
 @st.cache_resource
 def load_model():
-    model = Fastflow.load_from_checkpoint("model.ckpt")  # 🔥 UPDATE PATH
+    download_model()
+    model = Fastflow.load_from_checkpoint(MODEL_PATH)
     model.eval()
     model.to(device)
     return model
@@ -26,7 +41,7 @@ def load_model():
 model = load_model()
 
 # -------------------------
-# Preprocess image (IMPORTANT FIX)
+# Preprocess image
 # -------------------------
 def preprocess_image(image: Image.Image):
     image = image.resize((256, 256))
@@ -49,8 +64,6 @@ def detect_defects(image: Image.Image, thresh):
 
     with torch.no_grad():
         output = model(input_tensor)
-
-        # 🔥 FIX: correct way to access anomaly map
         anomaly_map = output["anomaly_map"].squeeze().cpu().numpy()
 
     # Normalize heatmap
