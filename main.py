@@ -8,19 +8,17 @@ from anomalib.models import Fastflow
 st.set_page_config(page_title="🧠 AI Leather Defect Detection", layout="wide")
 st.title("🧠 AI Leather Defect Detection (FastFlow)")
 
+# -------------------------
 # Device
-
+# -------------------------
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # -------------------------
-
-# Load model
-
+# Load trained model
 # -------------------------
-
 @st.cache_resource
 def load_model():
-    model = Fastflow(backbone="resnet18")
+    model = Fastflow.load_from_checkpoint("model.ckpt")  # 🔥 UPDATE PATH
     model.eval()
     model.to(device)
     return model
@@ -28,35 +26,40 @@ def load_model():
 model = load_model()
 
 # -------------------------
-
-# Preprocess image
-
+# Preprocess image (IMPORTANT FIX)
 # -------------------------
-
 def preprocess_image(image: Image.Image):
     image = image.resize((256, 256))
     image_np = np.array(image).astype(np.float32) / 255.0
-    image_tensor = torch.from_numpy(image_np).permute(2, 0, 1).unsqueeze(0)
-    return image_tensor.to(device), image_np
+
+    # ImageNet normalization
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    image_norm = (image_np - mean) / std
+
+    image_tensor = torch.from_numpy(image_norm).permute(2, 0, 1).unsqueeze(0)
+
+    return image_tensor.to(device), (image_np * 255).astype(np.uint8)
 
 # -------------------------
-
 # Detect defects
-
 # -------------------------
-
 def detect_defects(image: Image.Image, thresh):
     input_tensor, resized_img = preprocess_image(image)
 
     with torch.no_grad():
         output = model(input_tensor)
-        anomaly_map = output.anomaly_map.squeeze().cpu().numpy()
 
+        # 🔥 FIX: correct way to access anomaly map
+        anomaly_map = output["anomaly_map"].squeeze().cpu().numpy()
+
+    # Normalize heatmap
     heatmap = (anomaly_map - anomaly_map.min()) / (
         anomaly_map.max() - anomaly_map.min() + 1e-8
     )
     heatmap = (heatmap * 255).astype(np.uint8)
 
+    # Threshold mask
     mask = heatmap > thresh
 
     contours, _ = cv2.findContours(
@@ -65,13 +68,14 @@ def detect_defects(image: Image.Image, thresh):
         cv2.CHAIN_APPROX_SIMPLE
     )
 
-    annotated = (resized_img * 255).astype(np.uint8).copy()
+    annotated = resized_img.copy()
     boxes = []
 
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
 
-        if w * h < 50:
+        # Remove noise
+        if w * h < 100:
             continue
 
         boxes.append((x, y, x + w, y + h))
@@ -82,13 +86,9 @@ def detect_defects(image: Image.Image, thresh):
 
     return annotated, boxes, heatmap_color, overlay
 
-
 # -------------------------
-
 # UI
-
 # -------------------------
-
 option = st.radio("Choose Input", ["Upload Image", "Camera"])
 thresh = st.slider("Detection Sensitivity", 0, 255, 25)
 
@@ -104,11 +104,8 @@ else:
         image = Image.open(cam).convert("RGB")
 
 # -------------------------
-
 # Run detection
-
 # -------------------------
-
 if image is not None:
     annotated, defects, heatmap, overlay = detect_defects(image, thresh)
 
