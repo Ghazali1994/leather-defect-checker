@@ -59,12 +59,16 @@ def preprocess_image(image: Image.Image):
 # -------------------------
 # Detect defects
 # -------------------------
-def detect_defects(image: Image.Image, thresh):
-    input_tensor, resized_img = preprocess_image(image)
-
-    with torch.no_grad():
-        output = model(input_tensor)
-        anomaly_map = output["anomaly_map"].squeeze().cpu().numpy()
+    def detect_defects(image: Image.Image, thresh):
+        input_tensor, resized_img = preprocess_image(image)
+    
+        with torch.no_grad():
+    predictions = model(input_tensor)
+    
+    if isinstance(predictions, dict):
+        anomaly_map = predictions["anomaly_map"]
+    else:
+        anomaly_map = predictions.anomaly_map
 
     # Normalize heatmap
     heatmap = (anomaly_map - anomaly_map.min()) / (
