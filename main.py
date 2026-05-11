@@ -13,7 +13,7 @@ st.title("🧠 AI Leather Defect Detection (FastFlow)")
 # -------------------------
 # Device
 # -------------------------
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cpu"
 
 # -------------------------
 # Model download
