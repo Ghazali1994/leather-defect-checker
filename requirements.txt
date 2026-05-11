@@ -1,7 +1,9 @@
 streamlit
-torch==2.1.0
-torchvision==0.16.0
+torch==2.2.2
+torchvision==0.17.2
 opencv-python-headless
 pillow
 numpy
 anomalib
+lightning
+timm
